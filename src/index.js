@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import sequelize from "./config/db.js";
+// import { assertDbEnv } from "./config/db.js";
 
 // Import routes
 import userRoutes from "./routes/user.js";
@@ -44,21 +45,24 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public", "index.html"));
 });
 
-// Database connection and server start
-sequelize
-  .authenticate()
+// Database connection (lazy, non-blocking for serverless)
+// Validate env early (disabled for local dev, enabled via db.js comment out)
+ // assertDbEnv();
+
+// Start server immediately (Vercel serverless needs this)
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}`);
+});
+
+// Optional: Connect DB after server start (won't block)
+sequelize.authenticate()
   .then(() => {
     console.log("Database connected successfully");
-    return sequelize.sync();
-  })
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`API available at http://localhost:${PORT}/api`);
-    });
+    // NO sync() for serverless - use migrations
   })
   .catch((err) => {
-    console.error("Server failed to start", err);
-    process.exit(1);
+    console.error("Database connection failed (continuing without DB):", err);
+    // Don't exit - API still works for static/health
   });
 
